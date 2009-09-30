@@ -55,6 +55,14 @@ class OsimoBBParser{
 			'left'=>array(
 				'search'=>"/\[left\](.+)\[\/left\]/i",
 				'replace'=>'<div style="text-align:left">$1</div>'
+			),
+			'list'=>array(
+				'search'=>"/\[list\](.+)\[\/list\]/is",
+				'replace'=>'<ul>$1</ul>'
+			),
+			'[*]'=>array(
+				'search'=>"/\[\*\]([^\n|\r]+)/i",
+				'replace'=>'<li>$1</li>'
 			)
 		);
 		
@@ -78,6 +86,14 @@ class OsimoBBParser{
 			'color'=>array(
 				'search'=>"/\[color=([^\]]+)\](.+)\[\/color\]/i",
 				'replace'=>'<span style="color:$1">$2</span>'
+			),
+			'quote'=>array(
+				'search'=>"/\[quote=([^\]]+)\](.+)\[\/quote\]/i",
+				'replace'=>'<blockquote><span class="blockquote-title">Quote by $1:</span><br/>$2</blockquote>'
+			),
+			'align'=>array(
+				'search'=>"/\[align=(left|right|center)\](.+)\[\/align\]/i",
+				'replace'=>'<div style="text-align: $1">$2</div>'
 			)
 		);
 		
@@ -124,6 +140,16 @@ class OsimoBBParser{
 			$search[] = $code['search'];
 			$replace[] = $code['replace'];
 		}
+		
+		/* nocode tag check - must do this first! */
+		$content =  preg_replace_callback(
+			'/\[nocode\](.+)\[\/nocode\]/i',
+			create_function(
+				'$matches',
+				'return str_replace(array("[","]"),array("&#91;","&#93;"),$matches[1]);'
+			),
+			$content
+		);
 		
 		return nl2br(preg_replace($search,$replace,$content,-1,$count));
 	}
