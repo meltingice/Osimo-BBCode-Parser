@@ -31,7 +31,7 @@ class OsimoBBParser{
 			),
 			"url"=>array(
 				"search"=>"/\[url\](.+?)\[\/url\]/is",
-				"replace"=>'<a href="$1">$1</a>'
+				"replace"=>'<a target="_blank" href="$1">$1</a>'
 			),
 			"img"=>array(
 				"search"=>"/\[img\](.+?)\[\/img\]/is",
@@ -76,6 +76,14 @@ class OsimoBBParser{
 			'cell'=>array(
 				'search'=>"/\[cell\](.+?)\[\/cell\]/is",
 				'replace'=>'<td>$1</td>'
+			),
+			'spoiler'=>array(
+				'search'=>"/\[spoiler\](.+?)\[\/spoiler\]/is",
+				'replace'=>'<div class="spoiler"><div class="spoiler_header" onclick="$(this).next().slideToggle(\'slow\')">Click to show/hide spoiler.</div><div class="spoiler_content" style="display:none">$1</div></div>'
+			),
+			'hide'=>array(
+				'search'=>"/\[hide\](.+?)\[\/hide\]/is",
+				'replace'=>'<span class="inline_spoiler_notify" onclick="if($(this).next().is(\':visible\')){ $(this).next().fadeOut(\'fast\'); } else { $(this).next().fadeIn(\'fast\'); }">Spoiler!</span><span class="inline_spoiler">$1</span>'
 			)
 		);
 		
@@ -86,10 +94,10 @@ class OsimoBBParser{
 			),
 			"url"=>array(
 				"search"=>"/\[url=([^\]]+)\](.+?)\[\/url\]/is",
-				"replace"=>'<a href="$1">$2</a>'
+				"replace"=>'<a target="_blank" href="$1">$2</a>'
 			),
 			'size'=>array(
-				'search'=>"/\[size=([0-9]+)\](.+?)\[\/size\]/is",
+				'search'=>"/\[size=\s?([0-9]+)(?:px)?\](.+?)\[\/size\]/is",
 				'replace'=>'<span style="font-size:$1px">$2</span>'
 			),
 			'font'=>array(
@@ -107,6 +115,14 @@ class OsimoBBParser{
 			'align'=>array(
 				'search'=>"/\[align=(left|right|center)\](.+?)\[\/align\]/is",
 				'replace'=>'<div style="text-align: $1">$2</div>'
+			),
+			'spoiler'=>array(
+				'search'=>"/\[spoiler=([^\]]+)\](.+?)\[\/spoiler\]/is",
+				'replace'=>'<div class="spoiler"><div class="spoiler_header" onclick="$(this).next().slideToggle(\'slow\')">$1</div><div class="spoiler_content" style="display:none">$2</div></div>'
+			),
+			'hide'=>array(
+				'search'=>"/\[hide=([^\]]+)\](.+?)\[\/hide\]/is",
+				'replace'=>'<span class="inline_spoiler_notify" onclick="if($(this).next().is(\':visible\')){ $(this).next().fadeOut(\'fast\'); } else { $(this).next().fadeIn(\'fast\'); }">$1</span><span class="inline_spoiler">$2</span>'
 			)
 		);
 		
@@ -211,7 +227,12 @@ class OsimoBBParser{
 			}
 		}
 		
-		return $content;
+		/* Handle smilies, will probably change later */
+		if($this->isOsimo){
+			$content = $this->processSmilies($content);
+		}
+		
+		return nl2br($content);
 	}
 	
 	private function parseTable($matches){
@@ -254,6 +275,55 @@ class OsimoBBParser{
 		elseif($matches[1]=='cell'){ $ele_name = 'td'; }
 		else{ $ele_name = 'table'; }
 		return "<$ele_name $return_attr style=\"$return_css\">{$matches[3]}</$ele_name>";
+	}
+	
+	/*
+	 * This was copied directly from the old BBCode parser...
+	 * this will probably be completely changed in the future
+	 */
+	private function processSmilies($post)
+	{
+		if(!isset($_SESSION['osimo']['options']['smileySet']))
+		{
+			$query = "SELECT value FROM config WHERE name='current-smilies' LIMIT 1";
+			$result = mysql_query($query);
+			if($result)
+			{
+				$_SESSION['osimo']['options']['smileySet'] = reset(mysql_fetch_row($result));
+			}
+		}
+		
+		/* If smiley BBCode isn't cached, then do so */
+		if(!is_array($_SESSION['osimo']['smilies']))
+		{
+			$query = "SELECT code,image FROM smilies WHERE smileySet='".$_SESSION['osimo']['options']['smileySet']."'";
+			$result = mysql_query($query);
+			
+			if($result)
+			{
+				$i=0;
+				while(list($code,$image)=mysql_fetch_row($result))
+				{
+					$_SESSION['osimo']['smilies']['name'][$i] = $image;
+					$_SESSION['osimo']['smilies']['code'][$i] = $code;
+					$i++;
+				}
+			}
+		}
+		
+		if(is_array($_SESSION['osimo']['smilies']))
+		{
+			$j=0;
+			foreach($_SESSION['osimo']['smilies']['name'] as $smiley)
+			{
+				$replace[$j] = "<img src=\"".OSIMOPATH."os-content/smilies/".$_SESSION['osimo']['options']['smileySet']."/$smiley\" />";
+				$j++;
+			}
+			
+			$post = str_replace($_SESSION['osimo']['smilies']['code'],$replace,$post);
+		}
+		
+		return $post;
 	}
 }
 ?>
