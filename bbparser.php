@@ -194,6 +194,8 @@ class OsimoBBParser{
 			$content = stripslashes($content);
 		}
 		
+		$content = str_replace(array('<','>'),array('&lt;','&gt;'),$content);
+		
 		/* nocode tag check - must do this first! */
 		$content =  preg_replace_callback(
 			'/\[nocode\](.+?)\[\/nocode\]/is',
