@@ -1,17 +1,14 @@
 <?
-class OsimoBBParser{
-	private $isOsimo;
-	private $simple_bbcodes;
-	private $fancy_bbcodes;
-	private $allowedCSS;
+class BBParser {
+	private static $simple_bbcodes;
+	private static $fancy_bbcodes;
+	private static $allowedCSS;
 	
-	function OsimoBBParser(){
-		$this->isOsimo = true;
-		
-		$this->loadDefaults();
+	public static function bb2html($content) {
+		return self::parse($content);
 	}
 	
-	private function loadDefaults(){
+	private static function loadDefaults() {
 		$simple_defaults = array(
 			"b"=>array(
 				"search"=>"/\[b\](.+?)\[\/b\]/is",
@@ -126,12 +123,12 @@ class OsimoBBParser{
 			)
 		);
 		
-		$this->addSimple($simple_defaults);
-		$this->addFancy($fancy_defaults);
+		self::addSimple($simple_defaults);
+		self::addFancy($fancy_defaults);
 		
 		/* Allowed CSS attributes for tables - prevents things like
 		 * using position: absolute to cover the page contents. */
-		$this->allowedCSS = array(
+		self::$allowedCSS = array(
 			'width',
 			'height',
 			'background-color',
@@ -150,14 +147,14 @@ class OsimoBBParser{
 		);
 	}
 	
-	public function addSimple($tag){
+	private static function addSimple($tag){
 		if(is_array($tag)){
 			foreach($tag as $name=>$code){
-				$this->simple_bbcodes[$name] = $code;
+				self::$simple_bbcodes[$name] = $code;
 			}
 		}
 		else{ //make an assumption...
-			$this->simple_bbcodes[$tag] = array(
+			self::$simple_bbcodes[$tag] = array(
 				"tag"=>$tag,
 				"search"=>"/\[$tag\](.+)\[\/$tag\]/i",
 				"replace"=>'<'.$tag.'>$1</'.$tag.'>'
@@ -165,10 +162,10 @@ class OsimoBBParser{
 		}
 	}
 	
-	public function addFancy($tag){
+	private static function addFancy($tag){
 		if(is_array($tag)){
 			foreach($tag as $name=>$code){
-				$this->fancy_bbcodes[$name] = $code;
+				self::$fancy_bbcodes[$name] = $code;
 			}
 		}
 		else{
@@ -176,16 +173,16 @@ class OsimoBBParser{
 		}
 	}
 	
-	public function parse($content,&$count=false){
+	private static function parse($content,&$count=false){
 		$search = array();
 		$replace = array();
 		
-		foreach($this->simple_bbcodes as $code){
+		foreach(self::$simple_bbcodes as $code){
 			$search[] = $code['search'];
 			$replace[] = $code['replace'];
 		}
 		
-		foreach($this->fancy_bbcodes as $code){
+		foreach(self::$fancy_bbcodes as $code){
 			$search[] = $code['search'];
 			$replace[] = $code['replace'];
 		}
@@ -229,15 +226,10 @@ class OsimoBBParser{
 			}
 		}
 		
-		/* Handle smilies, will probably change later */
-		if($this->isOsimo){
-			$content = $this->processSmilies($content);
-		}
-		
 		return nl2br($content);
 	}
 	
-	private function parseTable($matches){
+	private static function parseTable($matches){
 		$return_css = '';
 		$return_attr = '';
 		$css = explode(';',$matches[2]);
@@ -245,7 +237,7 @@ class OsimoBBParser{
 			foreach($css as $prop){
 				$data = explode(':',$prop);
 				$css_name = strtolower($data[0]);
-				if(in_array($css_name,$this->allowedCSS)){
+				if(in_array($css_name,self::$allowedCSS)){
 					if($matches[1]=='table'){
 						if($css_name == 'cellpadding'||$css_name == 'cellspacing'){
 							$return_attr .= $css_name.'="'.$data[1].'" ';
@@ -277,55 +269,6 @@ class OsimoBBParser{
 		elseif($matches[1]=='cell'){ $ele_name = 'td'; }
 		else{ $ele_name = 'table'; }
 		return "<$ele_name $return_attr style=\"$return_css\">{$matches[3]}</$ele_name>";
-	}
-	
-	/*
-	 * This was copied directly from the old BBCode parser...
-	 * this will probably be completely changed in the future
-	 */
-	private function processSmilies($post)
-	{
-		if(!isset($_SESSION['osimo']['options']['smileySet']))
-		{
-			$query = "SELECT value FROM config WHERE name='current-smilies' LIMIT 1";
-			$result = mysql_query($query);
-			if($result)
-			{
-				$_SESSION['osimo']['options']['smileySet'] = reset(mysql_fetch_row($result));
-			}
-		}
-		
-		/* If smiley BBCode isn't cached, then do so */
-		if(!is_array($_SESSION['osimo']['smilies']))
-		{
-			$query = "SELECT code,image FROM smilies WHERE smileySet='".$_SESSION['osimo']['options']['smileySet']."'";
-			$result = mysql_query($query);
-			
-			if($result)
-			{
-				$i=0;
-				while(list($code,$image)=mysql_fetch_row($result))
-				{
-					$_SESSION['osimo']['smilies']['name'][$i] = $image;
-					$_SESSION['osimo']['smilies']['code'][$i] = $code;
-					$i++;
-				}
-			}
-		}
-		
-		if(is_array($_SESSION['osimo']['smilies']))
-		{
-			$j=0;
-			foreach($_SESSION['osimo']['smilies']['name'] as $smiley)
-			{
-				$replace[$j] = "<img src=\"".OSIMOPATH."os-content/smilies/".$_SESSION['osimo']['options']['smileySet']."/$smiley\" />";
-				$j++;
-			}
-			
-			$post = str_replace($_SESSION['osimo']['smilies']['code'],$replace,$post);
-		}
-		
-		return $post;
 	}
 }
 ?>
