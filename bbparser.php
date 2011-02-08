@@ -4,7 +4,13 @@ class BBParser {
 	private static $fancy_bbcodes;
 	private static $allowedCSS;
 	
+	private static $ready = false;
+
 	public static function bb2html($content) {
+		if (!self::$ready) {
+			self::loadDefaults();
+		}
+
 		return self::parse($content);
 	}
 	
@@ -145,6 +151,8 @@ class BBParser {
 			'cellspacing',
 			'align' // not a real CSS property - will allow for easy alignment
 		);
+
+		self::$ready = true;
 	}
 	
 	private static function addSimple($tag){
@@ -206,17 +214,17 @@ class BBParser {
 		/* unfortunately we have to do fancy tables separately */
 		$content = preg_replace_callback(
 			"/\[(table)=([^\]]+)\](.+?)\[\/table\]/is",
-			array($this,'parseTable'),
+			array(self,'parseTable'),
 			$content
 		);
 		$content = preg_replace_callback(
 			"/\[(row)=([^\]]+)\](.+?)\[\/row\]/is",
-			array($this,'parseTable'),
+			array(self,'parseTable'),
 			$content
 		);
 		$content = preg_replace_callback(
 			"/\[(cell)=([^\]]+)\](.+?)\[\/cell\]/is",
-			array($this,'parseTable'),
+			array(self,'parseTable'),
 			$content
 		);
 		
